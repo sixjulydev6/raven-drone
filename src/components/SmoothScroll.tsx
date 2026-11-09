@@ -55,13 +55,19 @@ const WHEEL_MULTIPLIER = 1.1;
  * immediately but not too fast", then "too many scrolls ... a little fast here"): the pull-back from the payload
  * frame goes quicker, the last stretch up to Ridge Clinic stays calm.
  */
-const CLIMB_SCROLL_SCALE = { payload: 1.4, pullBack: 1.1, climb: 0.75 }; // tuned with FREE_MAX_LEAD (user 2026-11-05; payload 2026-11-06)
+const CLIMB_SCROLL_SCALE = { payload: 1.4, pullBack: 1.1, climb: 1.0 }; // climb was .75 (user 2026-11-09: "too many scrolls to go up"); // tuned with FREE_MAX_LEAD (user 2026-11-05; payload 2026-11-06)
 /**
  * Speed cap for the climb (user 2026-11-05: "it should be fast, but not this fast"): the wheel may run at most this far
  * (px) ahead of the eased scroll, so a hard flick moves the climb at ~lerp x lead x 60 px/s (~1,300) instead of
  * leaping, while ordinary scrolls are untouched.
  */
-const FREE_MAX_LEAD = 280;
+// User 2026-11-09 ("if I scroll back fast from Ridge Clinic it jumps"): the lead was 280 px, tuned at lerp .11; at
+// FREE_LERP .18 that let a flick run ~2,800 px/s, so one fast reverse swipe flew the drone two-thirds of the way down
+// the route in ~0.5 s (forward, the Ridge Clinic wall hid it). Now a speed, turned into a lead at the current lerp.
+// User 2026-11-09 (next): "too many scrolls" up the climb at 1300 both ways. Forward runs into the Ridge Clinic wall,
+// so it can be fast again; only the way back down stays calm.
+const FREE_MAX_SPEED = { up: 2800, down: 1300 }; // px/s (up = scrolling toward Ridge Clinic)
+const freeMaxLead = (dir: number) => (dir > 0 ? FREE_MAX_SPEED.up : FREE_MAX_SPEED.down) / (FREE_LERP * 60); // ~260 / ~120 px at lerp .18
 /** Hero -> payload frame (free since 2026-11-06, user: "too many scrolls"): a higher cap so a swipe crosses the stage. */
 const PAYLOAD_MAX_LEAD = 300; // was 460 at lerp .18; top speed ~lerp x lead x 60 px/s (~4,300 at PAYLOAD_LERP, was ~5,000)
 /**
@@ -71,7 +77,7 @@ const PAYLOAD_MAX_LEAD = 300; // was 460 at lerp .18; top speed ~lerp x lead x 6
  */
 const PAYLOAD_LERP = 0.24; // .3 felt too fast (user 2026-11-06); .18 lagged
 const inPayloadStage = (scroll: number) => payloadRange.T > 0 && scroll < payloadRange.Q + payloadRange.T;
-const maxLead = (scroll: number) => (inPayloadStage(scroll) ? PAYLOAD_MAX_LEAD : FREE_MAX_LEAD);
+const maxLead = (scroll: number, dir: number) => (inPayloadStage(scroll) ? PAYLOAD_MAX_LEAD : freeMaxLead(dir));
 /** The root Lenis, for the climb's speed cap in the virtualScroll hook (set by SceneController). */
 const lenisRef: { current: { targetScroll: number; animatedScroll: number; options: { lerp?: number } } | null } = { current: null };
 const climbScale = (scroll: number) =>
@@ -702,7 +708,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
             const L = lenisRef.current;
             // Lenis reads options.lerp for each wheel step, so the payload stage can follow the hand more tightly.
             if (L) L.options.lerp = inPayloadStage(window.scrollY) ? PAYLOAD_LERP : FREE_LERP;
-            if (L && event.type === "wheel") d = Math.min(d, Math.max(0, maxLead(window.scrollY) - (L.targetScroll - L.animatedScroll) * dir));
+            if (L && event.type === "wheel") d = Math.min(d, Math.max(0, maxLead(window.scrollY, dir) -(L.targetScroll - L.animatedScroll) * dir));
             data.deltaY = dir * d;
           }
           if (event.type !== "wheel" || deltaY === 0 || !snapClaim.current?.(deltaY > 0 ? 1 : -1, deltaY, event as WheelEvent)) return true;
