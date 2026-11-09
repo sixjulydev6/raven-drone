@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useLoading } from "@/lib/loading";
 import { whenQuiet } from "@/lib/quiet";
-import { estimateRevealSeconds, formatEta } from "@/lib/load-eta";
+import { markPreparing, markRevealed } from "@/lib/load-eta";
 
 /** The silhouette canvas (three.js) loads on its own; the rest of the loader is plain DOM in the page's HTML. */
 const MatchCutCanvas = dynamic(() => import("./MatchCutCanvas"), { ssr: false });
@@ -18,37 +18,6 @@ const STATUS = {
   degraded: { label: "Slow connection", progress: 0.52 },
 };
 
-/**
- * Time left until the reveal (first frame), not until every full-quality map is in (lib/load-eta.ts). Re-estimated
- * every 250 ms and eased, so the figure counts down steadily instead of jumping as each file lands.
- */
-function useRevealEta(preparing: boolean, active: boolean) {
-  const [eta, setEta] = useState<string | null>(null);
-  const preparingSince = useRef<number | null>(null);
-  useEffect(() => {
-    if (preparing && preparingSince.current === null) preparingSince.current = performance.now();
-  }, [preparing]);
-  useEffect(() => {
-    if (!active) return;
-    let shown: number | null = null;
-    let last = performance.now();
-    const tick = () => {
-      const now = performance.now();
-      const target = estimateRevealSeconds(preparingSince.current);
-      if (target === null) return;
-      // Count down with the clock, then ease toward the new estimate (faster when it drops than when it grows).
-      shown = shown === null ? target : Math.max(0, shown - (now - last) / 1000);
-      shown += (target - shown) * (target < shown ? 0.35 : 0.15);
-      last = now;
-      setEta(formatEta(shown));
-    };
-    tick();
-    const id = setInterval(tick, 250);
-    return () => clearInterval(id);
-  }, [active]);
-  return active ? eta : null;
-}
-
 /** Status line + progress hairline (shipped module 58905). */
 function LoadingStatus() {
   const loaded = useLoading((s) => s.loadingCanvasLoaded);
@@ -58,11 +27,6 @@ function LoadingStatus() {
   const hiding = useLoading((s) => s.loadingCanvasIsHiding);
   const hidden = useLoading((s) => s.loadingCanvasHidden);
   const degraded = useLoading((s) => s.degraded);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const id = setTimeout(() => setVisible(true), 700);
-    return () => clearTimeout(id);
-  }, []);
   const status = hiding
     ? STATUS.ready
     : degraded
@@ -76,31 +40,37 @@ function LoadingStatus() {
         : STATUS.initializing;
   const max = useRef(0);
   max.current = Math.max(max.current, status.progress);
-  const eta = useRevealEta(main && !terrain, !hiding && !hidden);
+  // Loader ETA (lib/load-eta.ts): the inline script in the page HTML computes it; React only reports the phases.
+  const preparing = main && !terrain;
+  useEffect(() => {
+    if (preparing) markPreparing();
+  }, [preparing]);
+  const done = hiding || hidden || status === STATUS.ready;
+  useEffect(() => {
+    if (done) markRevealed();
+  }, [done]);
   if (hidden) return null;
   return (
     <div
       role="status"
       aria-live="polite"
       className={clsx(
-        "pointer-events-none fixed inset-x-0 bottom-[max(12vh,5.5rem)] z-[950] flex flex-col items-center gap-3 transition-opacity duration-700 ease-out",
-        visible && !hiding ? "opacity-100" : "opacity-0",
+        "pointer-events-none fixed inset-x-0 bottom-[max(12vh,5.5rem)] z-[950] transition-opacity duration-700 ease-out",
+        hiding ? "opacity-0" : "opacity-100",
       )}
     >
-      <div className="h-px w-24 overflow-hidden bg-white/10">
-        <div className="h-full bg-white/40 transition-[width] duration-700 ease-out" style={{ width: `${100 * max.current}%` }} />
+      {/* Fades in from the first paint (CSS, globals.css .loader-status-in), not after hydration: on Slow 4G that was
+          ~7 s of nothing. The outer element owns the fade-out at the reveal. */}
+      <div className="loader-status-in flex flex-col items-center gap-3">
+        <div className="h-px w-24 overflow-hidden bg-white/10">
+          <div className="h-full bg-white/40 transition-[width] duration-700 ease-out" style={{ width: `${100 * max.current}%` }} />
+        </div>
+        <p className="font-mono text-[0.625rem] tracking-[0.28em] text-white/35 uppercase">
+          {status.label}
+          {/* Figure written by the inline ETA script as data-eta and drawn by CSS (globals.css .load-eta). */}
+          <span id="load-eta" className="load-eta" suppressHydrationWarning />
+        </p>
       </div>
-      <p className="font-mono text-[0.625rem] tracking-[0.28em] text-white/35 uppercase">
-        {status.label}
-        {eta && status !== STATUS.ready && (
-          <span className="tabular-nums">
-            <span aria-hidden="true"> · </span>
-            <span className="sr-only">, about </span>
-            {eta}
-            <span className="sr-only"> left</span>
-          </span>
-        )}
-      </p>
     </div>
   );
 }

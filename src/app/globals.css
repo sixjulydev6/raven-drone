@@ -778,3 +778,17 @@ dialog::backdrop {
     margin-top: 20px;
   }
 }
+
+/* Loader status line (Loader.tsx): fades in from the first paint, before hydration, the outer element fades it out at the reveal. */
+@keyframes loader-status-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.loader-status-in {
+  animation: loader-status-in 0.7s ease-out 0.7s both;
+}
+/* Loader ETA figure, written by the inline script in layout.tsx (lib/load-eta.ts) as data-eta. */
+.load-eta[data-eta]::before {
+  content: " \00B7  " attr(data-eta);
+  font-variant-numeric: tabular-nums;
+}

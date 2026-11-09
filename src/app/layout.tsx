@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import localFont from "next/font/local";
 import { preload } from "react-dom";
 import { ASSETS, DRACO_PATH } from "@/lib/assets";
+import { LOAD_ETA_SCRIPT } from "@/lib/load-eta";
 import { Navbar } from "@/components/Navbar";
 import { SmoothScroll } from "@/components/SmoothScroll";
 import "./globals.css";
@@ -47,6 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${interTight.variable} ${dmMono.variable}`}>
       <body className="antialiased">
+        {/* Loader ETA (lib/load-eta.ts): runs from the first bytes, long before the page JS hydrates. */}
+        <script dangerouslySetInnerHTML={{ __html: LOAD_ETA_SCRIPT }} />
         <SmoothScroll>
           <Navbar />
           {children}
