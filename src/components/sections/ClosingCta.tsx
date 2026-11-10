@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { useInView } from "motion/react";
 import { useRef } from "react";
-import { ContactButton } from "@/components/ContactButton";
 import { ArrowRightIcon } from "@/components/ui/icons";
 
 /** The landing drone behind the copy (ClosingCtaDrone.tsx): its own chunk, fetched when the section is near. */
@@ -34,17 +33,13 @@ export function ClosingCta() {
           Sixjuly is a clarity-first design studio. Brand, web and 3D, built for products that need explaining. Our 3D shortens the path from
           first look to confident decision.
         </p>
-        <ContactButton
-          label="Talk to us"
-          trigger={
-            <button type="button" className="cta-btn">
-              <span>Talk to us</span>
-              <span className="cta-btn-arrow" aria-hidden="true">
-                <ArrowRightIcon className="size-3.5" />
-              </span>
-            </button>
-          }
-        />
+        {/* User 2026-11-10: "Talk to us" goes to the studio's contact page (was the site's contact modal). */}
+        <a href="https://sixjuly.com/contact/" className="cta-btn">
+          <span>Talk to us</span>
+          <span className="cta-btn-arrow" aria-hidden="true">
+            <ArrowRightIcon className="size-3.5" />
+          </span>
+        </a>
       </div>
     </section>
   );
