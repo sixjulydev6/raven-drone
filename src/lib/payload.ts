@@ -71,6 +71,32 @@ export const scrollEase = (p: number, [a, b]: readonly [number, number]) => {
   return 0.65 * t + 0.35 * t * t * t * (t * (6 * t - 15) + 10);
 };
 
+/**
+ * Hero-frame hand-off (user feedback 2026-11-10: "jitter or lag at this exact point" on the hero frame). The opening
+ * camera arrived at 65% of its mean speed and stopped turning in one frame while the payload zoom set off at 65% of
+ * its own, in another direction (measured: camera turn 1.06 deg/100 px -> 0, drone on screen 0 -> +4.9 / 1e4 px).
+ * Now the two overlap over HANDOFF_SHARE of the opening's length: the opening's linear part brakes to rest over its
+ * last stretch while the zoom's linear part speeds up from rest over the same page px, so the camera's speed carries
+ * through with no dead zone.
+ */
+export const HANDOFF_SHARE = 0.12;
+/** Linear on [0, 1] with its slope easing to 0 over the last `w` (quadratic), rescaled to end on 1. */
+export const linearEaseOutTail = (t: number, w: number) => {
+  const x = clamp01(t);
+  if (w <= 0) return x;
+  const s = (x - (1 - w)) / w;
+  return (s <= 0 ? x : 1 - w + w * (s - (s * s) / 2)) / (1 - w / 2);
+};
+/** Payload camera zoom for a page scroll: starts HANDOFF_SHARE of the opening before the hero frame, from rest. */
+export const payloadZoomAt = (page: number) => {
+  const { Q, T } = payloadRange;
+  if (T <= 0) return 0;
+  const lead = Q * HANDOFF_SHARE; // the opening spans page [0, Q]
+  const t = clamp01((page - (Q - lead)) / (T + lead));
+  const w = lead / (T + lead);
+  return 0.65 * (1 - linearEaseOutTail(1 - t, w)) + 0.35 * t * t * t * (t * (6 * t - 15) + 10);
+};
+
 /** Page range of the stage, set by story-map `measureStoryMap`. */
 export const payloadRange = { Q: 0, T: 0 };
 
@@ -242,7 +268,7 @@ export function payloadLook(page = typeof window === "undefined" ? 0 : window.sc
     // scroll and settles softly. The S-curve it had (smootherstep) moved it <4% over the first fifth of the stage.
     // Mostly linear since 2026-11-06 (free scroll, user: "snap-like"): easeOutRange moved it 5% over the last 30% of the
     // stage, a dead zone before the mountain stage. scrollEase keeps ~2/3 of its mean speed at both ends.
-    zoom: scrollEase(p, t.zoom),
+    zoom: payloadZoomAt(page), // was scrollEase(p, t.zoom); starts just before the hero frame (HANDOFF_SHARE)
     vector: clamp01((p - t.vector[0]) / (t.vector[1] - t.vector[0])), // the sweep shader eases its own front
     highlight: easeRange(p, t.highlight) * (1 - easeRange(r, ROUTE_TIMELINE.highlightOut)),
     /** Altitude stage camera weight (raw progress in its range; the camera eases its parts). */

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { lerp } from "@/lib/math";
+import { HANDOFF_SHARE, linearEaseOutTail } from "@/lib/payload";
 
 /**
  * Raven opening (user, 2026-11-01; not in the shipped bundle). The page opens on a low wide-angle shot just under the
@@ -34,6 +35,8 @@ const _rel = new THREE.Vector3();
 const _eye = new THREE.Vector3();
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
+const _qFix = new THREE.Quaternion();
+const _qId = new THREE.Quaternion();
 
 /**
  * 0..1 ease-out (user 2026-11-05: "while scrolling down there is still delay"): the camera moves with the first scroll
@@ -45,7 +48,9 @@ export const openingEase = (p: number) => {
   // Mostly linear (user 2026-11-06, free scroll: "still some slow, snap-like effect"): the ease-out (1-(1-t)^2.2) moved
   // the camera 3% over the last fifth of the opening, ~500 px of scroll where nothing changed before the payload stage.
   // Now 35% smootherstep: the camera answers the first scroll and keeps ~2/3 of its mean speed to the hero frame.
-  return 0.65 * t + 0.35 * t * t * t * (t * (6 * t - 15) + 10);
+  // The linear part brakes to rest over the last HANDOFF_SHARE while the payload zoom speeds up over the same scroll
+  // (lib/payload.ts `payloadZoomAt`), so the camera never stops dead or changes direction in one frame at the hero frame.
+  return 0.65 * linearEaseOutTail(t, HANDOFF_SHARE) + 0.35 * t * t * t * (t * (6 * t - 15) + 10);
 };
 
 /** Barrel strength for an opening progress. */
@@ -81,11 +86,16 @@ export function applyOpening(mover: THREE.Object3D, camera: THREE.PerspectiveCam
   const el = lerp(elStart, heroEl, u);
   const az = heroAz + OPENING.azimuthStart * DEG * (1 - u);
 
+  // Land exactly on the clip orientation. The clip has a slight roll that lookAt leaves out; it used to be blended in
+  // over the last 15% of the opening (slerp to the clip, smoothstep .85 -> 1), which swung the drone up then down the
+  // screen just before the hero frame and reversed it there (user feedback 2026-11-10: "jitter or lag at this exact
+  // point"; measured drone screen speed +5.7 -> -8.6 -> +4.9 per 1e4 px around P). Now the clip's own offset from the
+  // lookAt pose (camera-local, mostly roll) is taken at the hero pose and eased in along the whole path (u).
+  _m.lookAt(mover.position, _target, UP);
+  _qFix.setFromRotationMatrix(_m).invert().multiply(mover.quaternion);
   _eye.set(Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)).multiplyScalar(r).add(_target);
   _m.lookAt(_eye, _target, UP);
-  _q.setFromRotationMatrix(_m);
-  // Land exactly on the clip orientation (no roll in Camera01, so this only removes float drift).
-  _q.slerp(mover.quaternion, THREE.MathUtils.smoothstep(p, 0.85, 1));
+  _q.setFromRotationMatrix(_m).multiply(_qId.identity().slerp(_qFix, u));
   mover.position.copy(_eye);
   mover.quaternion.copy(_q);
 

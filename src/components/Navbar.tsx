@@ -25,12 +25,17 @@ const CHAPTERS: [SceneId, string][] = [
 ];
 
 /** In-page destinations (the shipped menu linked to other products). `null` = top of the story. */
-// Raven payload page (user, 2026-11-03): the page is hero -> payload only, so the links go to those two frames.
+// Every section of the page in order (feedback 2026-11-10: "the menu on the right side needs to be updated"; it only
+// reached the 3D story): the story frames, then Sections 03-05 (Section 03's band top is its first feature stop).
+// Contact (last item, all sizes) opens the contact modal like the bar's button.
 const MENU_LINKS: { label: string; target: string | null }[] = [
   { label: "The delivery story", target: null },
   { label: "Payload", target: "#payload" },
   { label: "Altitude", target: "#route" },
   { label: "Speed", target: "#speed" },
+  { label: "Hardware", target: "#features-band" },
+  { label: "Capabilities", target: "#capabilities" },
+  { label: "Use cases", target: "#use-cases" },
 ];
 
 /** Chapter ticks (Airframe ... Care teams) are off: those chapters are no longer on the page. */
@@ -285,7 +290,7 @@ function Menu() {
                   </button>
                 </li>
               ))}
-              <li className="md:hidden">
+              <li>
                 <ContactButton
                   label="Contact"
                   trigger={
