@@ -11,11 +11,11 @@ if (typeof window !== "undefined") {
   for (const type of ["scroll", "wheel", "touchmove", "keydown"] as const) window.addEventListener(type, mark, { passive: true });
 }
 
-/** Resolves on an animation frame at least QUIET_MS after the last scroll input. */
-export function whenQuiet(): Promise<void> {
+/** Resolves on an animation frame at least `quietMs` (default QUIET_MS) after the last scroll input. */
+export function whenQuiet(quietMs = QUIET_MS): Promise<void> {
   return new Promise((resolve) => {
     const check = () => {
-      const wait = lastInput + QUIET_MS - performance.now();
+      const wait = lastInput + quietMs - performance.now();
       if (wait > 0) setTimeout(check, wait + 16);
       else requestAnimationFrame(() => resolve());
     };
