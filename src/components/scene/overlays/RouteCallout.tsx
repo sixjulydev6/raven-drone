@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { preload } from "react-dom";
 import { CALLOUT_BODY, CALLOUT_BOX, CALLOUT_H, kickerText } from "./callout-layout";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { ALTITUDE_COPY, ROUTE_CLINIC_IMAGE, ROUTE_COPY, ROUTE_FLIGHT, routeScreen, type SiteImage } from "@/lib/payload";
@@ -55,6 +56,9 @@ export const useClinicPinRefs = (): ClinicPinRefs => ({
  * arrived (user 2026-11-05: "the plus has to change to image ... like showing a pin"). Same stem and foot as `Pin`;
  * positioned and opened every frame by `placeClinicPin`.
  */
+/** Failed photo loads retried before the neutral tile stays. */
+const IMG_RETRIES = 3;
+
 export function ClinicPin({
   stem,
   refs,
@@ -66,7 +70,12 @@ export function ClinicPin({
   name?: string;
   image?: SiteImage;
 }) {
-  const [broken, setBroken] = useState(false);
+  // Photos sometimes missing (feedback 2026-11-13): they were 250 KB PNGs queued behind the HD swap's large downloads,
+  // and one failed request hid the photo for the rest of the visit. Now ~40 KB WebP, preloaded at high priority, and a
+  // failed load retries (cache-busted) before falling back to the neutral tile.
+  preload(image.src, { as: "image", fetchPriority: "high" });
+  const [attempt, setAttempt] = useState(0);
+  const broken = attempt > IMG_RETRIES;
   const card = cardFor(useMediaQuery(PHONE_QUERY));
   return (
     <div ref={refs.root} className="absolute top-0 left-0 flex flex-col items-center" style={{ width: PIN.size, opacity: 0 }}>
@@ -106,10 +115,13 @@ export function ClinicPin({
               {!broken && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={image.src}
+                  key={attempt}
+                  src={attempt ? `${image.src}?retry=${attempt}` : image.src}
                   alt={image.alt}
                   className="absolute inset-0 size-full object-cover"
-                  onError={() => setBroken(true)}
+                  loading="eager"
+                  fetchPriority="high"
+                  onError={() => window.setTimeout(() => setAttempt((a) => a + 1), 600 * (attempt + 1))}
                   draggable={false}
                 />
               )}

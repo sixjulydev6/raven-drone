@@ -167,8 +167,8 @@ export const ROUTE_COPY = { destination: "Ridge Clinic", second: "Summit Station
  * the user's own (portrait, ~270x310 and ~320x350, replaced 2026-11-09).
  */
 export type SiteImage = { src: string; alt: string };
-export const ROUTE_CLINIC_IMAGE: SiteImage = { src: "/assets/route/ridge-clinic.png", alt: "Ridge Clinic, a small clinic in a mountain village" };
-export const ROUTE_SUMMIT_IMAGE: SiteImage = { src: "/assets/route/summit-station.png", alt: "Summit Station, a field medical tent" };
+export const ROUTE_CLINIC_IMAGE: SiteImage = { src: "/assets/route/ridge-clinic.webp", alt: "Ridge Clinic, a small clinic in a mountain village" };
+export const ROUTE_SUMMIT_IMAGE: SiteImage = { src: "/assets/route/summit-station.webp", alt: "Summit Station, a field medical tent" };
 /** Flight up the route once the line has drawn (s), and the altitude the counter reaches at the route's top. */
 export const ROUTE_FLIGHT = { drawS: 1.6, flyS: 6.5, returnS: 0.8, topM: 5000 } as const;
 

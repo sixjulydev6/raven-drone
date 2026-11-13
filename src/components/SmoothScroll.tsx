@@ -133,19 +133,32 @@ const isHoldStop = (y: number) => {
 const freeStart = () => 0;
 const freeEnd = () => (climbRange.T > 0 ? climbRange.Q + climbRange.T : 0);
 /**
+ * Leg 2 (Ridge Clinic -> Summit Station, the green line) is a second free zone (feedback 2026-11-13: one swipe flew the
+ * whole leg in a 2.6 s glide, "too much and not on scroll"; it should scroll like the climb). Ridge Clinic stays a wall
+ * between the two zones, so the swipe that reaches it ends there (the checkpoint pause) and the next one flies on.
+ */
+const freeZones = (): [number, number][] => {
+  const zones: [number, number][] = [[freeStart(), freeEnd()]];
+  if (speedRange.T > 0) zones.push([speedRange.Q, speedRange.Q + speedRange.T]);
+  return zones.filter(([a, b]) => b > a);
+};
+/** The free zone a step in `dir` from `scroll` moves through (an end counts when the step heads into the zone). */
+const freeZoneAt = (scroll: number, dir: number): [number, number] | null => {
+  if (touchPhone.current) return null;
+  for (const z of freeZones()) {
+    const [a, b] = z;
+    if (scroll > a + 0.5 && scroll < b - 0.5) return z;
+    if ((Math.abs(scroll - a) <= 0.5 && dir > 0) || (Math.abs(scroll - b) <= 0.5 && dir < 0)) return z;
+  }
+  return null;
+};
+/**
  * Touch phones (user 2026-11-06: the 3D stage "is taking too many scrolls to go down only in mobile"): no free zone.
  * Following the finger, the climb took ~8 of the stage's 12 swipes on a 390x844 phone; there it plays its two stops
  * (halfway up, Ridge Clinic) like every other stage, one swipe each. Set by SceneController from its media query.
  */
 const touchPhone = { current: false };
-const isFree = (scroll: number, dir: number) => {
-  if (touchPhone.current) return false;
-  const a = freeStart();
-  const b = freeEnd();
-  if (!(b > a)) return false;
-  if (scroll > a + 0.5 && scroll < b - 0.5) return true;
-  return (Math.abs(scroll - a) <= 0.5 && dir > 0) || (Math.abs(scroll - b) <= 0.5 && dir < 0);
-};
+const isFree = (scroll: number, dir: number) => freeZoneAt(scroll, dir) !== null;
 /** When the free scroll last ran into one of its walls (performance.now) and in which direction. */
 const freeWall = { at: -1e9, dir: 0 };
 
@@ -368,7 +381,10 @@ function SceneController() {
         if (!fresh && arrivedAt.current >= G.lastFreshAt) return true;
         if (arrivedHold.current && performance.now() - arrivedAt.current < HOLD_MS) return true;
         const next = lenis.targetScroll + deltaY * WHEEL_MULTIPLIER * climbScale(lenis.targetScroll);
-        const wall = dir > 0 ? (next >= freeEnd() ? freeEnd() : null) : next <= freeStart() ? freeStart() : null;
+        // The swipe that ran into a wall ends there: its momentum does not carry on into the next zone (Ridge Clinic).
+        if (!fresh && dir === freeWall.dir && freeWall.at >= G.lastFreshAt) return true;
+        const [za, zb] = freeZoneAt(lenis.scroll, dir)!;
+        const wall = dir > 0 ? (next >= zb ? zb : null) : next <= za ? za : null;
         if (wall !== null) {
           lenis.scrollTo(wall); // eased by Lenis' lerp, lands on the frame
           freeWall.at = performance.now();
