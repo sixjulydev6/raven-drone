@@ -66,7 +66,10 @@ const CLIMB_SCROLL_SCALE = { payload: 1.4, pullBack: 1.1, climb: 1.0 }; // climb
 // the route in ~0.5 s (forward, the Ridge Clinic wall hid it). Now a speed, turned into a lead at the current lerp.
 // User 2026-11-09 (next): "too many scrolls" up the climb at 1300 both ways. Forward runs into the Ridge Clinic wall,
 // so it can be fast again; only the way back down stays calm.
-const FREE_MAX_SPEED = { up: 2800, down: 1300 }; // px/s (up = scrolling toward Ridge Clinic)
+// Feedback 2026-11-13 ("while coming reverse it is taking too many scrolls in both lines green and yellow"): reverse
+// took ~370 px per swipe against ~667 forward. Same cap both ways now; the route is even along the scroll
+// (payload.ts routeFlight), so a hard reverse fling covers ~1/3 of the climb, not 2/3 as at the old 280 px lead.
+const FREE_MAX_SPEED = { up: 2800, down: 2800 }; // px/s (up = scrolling toward Ridge Clinic)
 const freeMaxLead = (dir: number) => (dir > 0 ? FREE_MAX_SPEED.up : FREE_MAX_SPEED.down) / (FREE_LERP * 60); // ~260 / ~120 px at lerp .18
 /** Hero -> payload frame (free since 2026-11-06, user: "too many scrolls"): a higher cap so a swipe crosses the stage. */
 const PAYLOAD_MAX_LEAD = 300; // was 460 at lerp .18; top speed ~lerp x lead x 60 px/s (~4,300 at PAYLOAD_LERP, was ~5,000)
