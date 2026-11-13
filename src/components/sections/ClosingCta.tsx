@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useInView } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { whenQuiet } from "@/lib/quiet";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { ArrowRightIcon } from "@/components/ui/icons";
 
 /** The landing drone behind the copy (ClosingCtaDrone.tsx): its own chunk, fetched when the section is near. */
@@ -22,21 +23,28 @@ export function ClosingCta() {
   // screens ahead (while Section 03's stops are read) and each half waits for a reading pause (lib/quiet.ts, no scroll
   // input for CTA_QUIET_MS; the default 300 ms is shorter than the gap between two swipes): the chunk in one pause, the
   // canvas in the next.
+  // Feedback 2026-11-13 (desktop: "the drone is not coming quickly ... it is having delay"): with steady scrolling the
+  // page is never quiet for CTA_QUIET_MS, so the drone only started loading once the reader stopped at the section
+  // (measured: canvas 2.1 s after the section came on screen). Desktop no longer waits for a pause (its stalls are
+  // short); phones still do, but never past `close` (1.5 screens ahead), where it mounts at once.
   const near = useInView(ref, { margin: "600% 0px 600% 0px", once: true });
+  const close = useInView(ref, { margin: "150% 0px 150% 0px", once: true });
+  const touchPhone = useMediaQuery("(max-width: 768px) and (pointer: coarse)");
   const [mount, setMount] = useState(false);
   useEffect(() => {
     if (!near) return;
     let live = true;
+    const pause = () => (touchPhone && !close ? whenQuiet(CTA_QUIET_MS) : Promise.resolve());
     (async () => {
-      await whenQuiet(CTA_QUIET_MS);
+      await pause();
       await loadCtaDrone();
-      await whenQuiet(CTA_QUIET_MS);
+      await pause();
       if (live) setMount(true);
     })();
     return () => {
       live = false;
     };
-  }, [near]);
+  }, [near, close, touchPhone]);
   return (
     <section
       ref={ref}
