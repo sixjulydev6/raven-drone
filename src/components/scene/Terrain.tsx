@@ -402,7 +402,11 @@ function TerrainView({ city: eagerCity }: { city?: CityAssets }) {
     // finishes downloading at ~25 s instead of ~75 s. Fast links skip the 2K step and get the 4K map and the
     // tree-variant maps, exactly as before. The drone's originals load on every link (hd-assets.ts).
     const slowLink = performance.now() > SLOW_PAGE_MS;
-    if (slowLink) {
+    // Phones (user 2026-11-13: "make it scroll smooth the entire page"): the 2K map too, no 4K maps. Each 4096^2 upload
+    // held the main thread ~300 ms (measured, 390x844 @3x) and landed between swipes at payload and route/climb;
+    // a 2K upload is a quarter of that, and a phone screen cannot show the 4K detail.
+    const phone = window.matchMedia("(max-width: 767px)").matches;
+    if (slowLink || phone) {
       queueHd(HD_PRIORITY.terrainStep, async () => {
         const mid = await load(ASSETS.ravenLandMap2k);
         if (mid) for (const m of [...naturalVariants, ...mountainVariants]) m.uniforms.uBaseTexture.value = mid;

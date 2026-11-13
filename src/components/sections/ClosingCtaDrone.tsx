@@ -1,13 +1,14 @@
 "use client";
 
-import { Environment, Lightformer, PerspectiveCamera, Preload } from "@react-three/drei";
+import { Environment, Lightformer, PerspectiveCamera } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useInView } from "motion/react";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { RavenModel } from "@/components/scene/Drone";
 import { useMouse } from "@/lib/scenes";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { whenQuiet } from "@/lib/quiet";
 import { FloatBob, landingPose, landingProgress, PointerLean, type LandingPose } from "./drone-flight";
 
 /**
@@ -27,7 +28,7 @@ const START_HEIGHT = 0.55; // was 1.45, 1.1 (user 2026-11-05: the drone arrived 
 const MODEL_SCALE = 0.01;
 const _e = new THREE.Euler();
 
-function Flight({ playing }: { playing: boolean }) {
+function Flight({ playing, ready }: { playing: boolean; ready: boolean }) {
   const motion = useRef<THREE.Group>(null);
   const t = useRef(0);
   const floatBob = useRef(new FloatBob());
@@ -46,14 +47,14 @@ function Flight({ playing }: { playing: boolean }) {
     const m = motion.current;
     if (!m) return;
     if (reducedMotion) {
-      m.visible = true;
+      m.visible = ready;
       m.position.set(0, 0, 0);
       m.quaternion.identity();
       m.scale.setScalar(1);
       return;
     }
-    m.visible = playing;
-    if (!playing) return;
+    m.visible = ready && playing;
+    if (!ready || !playing) return;
     t.current += Math.min(dt, 1 / 20);
     const n = landingProgress(t.current);
     landingPose(n, START_HEIGHT, pose.current);
@@ -74,6 +75,60 @@ function Flight({ playing }: { playing: boolean }) {
       </group>
     </group>
   );
+}
+
+/**
+ * Smoothness (user 2026-11-13, phone scroll): drei's <Preload all> compiled the drone's materials synchronously, a
+ * 2.5 s main-thread freeze at the use-cases section (measured, 390x844 @3x). The canvas first renders a few frames with
+ * the drone hidden, so the Environment bakes (compiling before it does builds programs without the env map, which
+ * the first visible frame then re-links synchronously); then compileAsync links the drone's programs in the
+ * background (KHR_parallel_shader_compile), the textures upload in a scroll pause, and only then is the drone shown.
+ */
+function Warmup({ onReady }: { onReady: () => void }) {
+  const { gl, scene, camera } = useThree();
+  const frames = useRef(0);
+  const [baked, setBaked] = useState(false);
+  useFrame(() => {
+    if (!baked && ++frames.current >= 3) setBaked(true);
+  });
+  useEffect(() => {
+    if (!baked) return;
+    let alive = true;
+    (async () => {
+      try {
+        // compileAsync walks visible objects only: show the hidden drone for the (synchronous) program setup.
+        const hidden: THREE.Object3D[] = [];
+        scene.traverse((o) => {
+          if (!o.visible) {
+            hidden.push(o);
+            o.visible = true;
+          }
+        });
+        const compiled = gl.compileAsync(scene, camera);
+        for (const o of hidden) o.visible = false;
+        await compiled;
+        const textures = new Set<THREE.Texture>();
+        scene.traverse((o) => {
+          const mats = (o as THREE.Mesh).material;
+          if (!mats) return;
+          for (const m of Array.isArray(mats) ? mats : [mats])
+            for (const v of Object.values(m)) if (v instanceof THREE.Texture) textures.add(v);
+        });
+        for (const t of textures) {
+          await whenQuiet();
+          if (!alive) return;
+          gl.initTexture(t);
+        }
+      } catch (err) {
+        console.warn("Closing drone warm-up failed; compiling on first frame.", err);
+      }
+      if (alive) onReady();
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [baked, gl, scene, camera, onReady]);
+  return null;
 }
 
 /** Mockup framing: front on from ~20 deg above (top plate visible), hub a little above the copy. */
@@ -109,6 +164,8 @@ export default function CtaDrone({ className }: { className?: string }) {
   const inView = useInView(ref, { margin: "200% 0px 200% 0px" }); // was 100%: first frames (compile, env bake) well ahead
   const seen = useInView(ref, { amount: 0.05 });
   const [playing, setPlaying] = useState(false);
+  const [ready, setReady] = useState(false);
+  const onReady = useCallback(() => setReady(true), []);
   useEffect(() => {
     if (seen) setPlaying(true);
     else if (!inView) setPlaying(false);
@@ -129,9 +186,9 @@ export default function CtaDrone({ className }: { className?: string }) {
         <directionalLight position={[-0.4, 1, 0.8]} intensity={2.2} />
         <ambientLight intensity={0.25} />
         <Suspense fallback={null}>
-          <Flight playing={playing} />
-          {/* Compile the drone's materials up front, not on its first visible frame. */}
-          <Preload all />
+          <Flight playing={playing} ready={ready} />
+          {/* Compile the drone's materials up front, off the main thread, not on its first visible frame. */}
+          <Warmup onReady={onReady} />
         </Suspense>
       </Canvas>
     </div>
