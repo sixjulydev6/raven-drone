@@ -55,7 +55,7 @@ const WHEEL_MULTIPLIER = 1.1;
  * immediately but not too fast", then "too many scrolls ... a little fast here"): the pull-back from the payload
  * frame goes quicker, the last stretch up to Ridge Clinic stays calm.
  */
-const CLIMB_SCROLL_SCALE = { payload: 1.4, pullBack: 1.1, climb: 1.0 }; // climb was .75 (user 2026-11-09: "too many scrolls to go up"); // tuned with FREE_MAX_LEAD (user 2026-11-05; payload 2026-11-06)
+const CLIMB_SCROLL_SCALE = { payload: 1.4, pullBack: 1.1, climb: 1.0, leg2: 0.72 }; // climb was .75 (user 2026-11-09: "too many scrolls to go up"); // tuned with FREE_MAX_LEAD (user 2026-11-05; payload 2026-11-06)
 /**
  * Speed cap for the climb (user 2026-11-05: "it should be fast, but not this fast"): the wheel may run at most this far
  * (px) ahead of the eased scroll, so a hard flick moves the climb at ~lerp x lead x 60 px/s (~1,300) instead of
@@ -83,8 +83,13 @@ const inPayloadStage = (scroll: number) => payloadRange.T > 0 && scroll < payloa
 const maxLead = (scroll: number, dir: number) => (inPayloadStage(scroll) ? PAYLOAD_MAX_LEAD : freeMaxLead(dir));
 /** The root Lenis, for the climb's speed cap in the virtualScroll hook (set by SceneController). */
 const lenisRef: { current: { targetScroll: number; animatedScroll: number; options: { lerp?: number } } | null } = { current: null };
-const climbScale = (scroll: number) =>
-  inPayloadStage(scroll)
+/** Leg 2 (Ridge Clinic -> Summit Station; feedback 2026-11-13: "too fast ... increase one more scroll"): 3 -> 4 swipes. */
+const onLeg2 = (scroll: number, dir: number) =>
+  speedRange.T > 0 && scroll < speedRange.Q + speedRange.T + 0.5 && (scroll > speedRange.Q + 0.5 || (scroll >= speedRange.Q - 0.5 && dir > 0));
+const climbScale = (scroll: number, dir: number) =>
+  onLeg2(scroll, dir)
+    ? CLIMB_SCROLL_SCALE.leg2
+    : inPayloadStage(scroll)
     ? CLIMB_SCROLL_SCALE.payload
     : scroll < climbRange.Q
       ? CLIMB_SCROLL_SCALE.pullBack
@@ -383,7 +388,7 @@ function SceneController() {
         // the short pause after landing on a checkpoint. A new swipe goes through at once.
         if (!fresh && arrivedAt.current >= G.lastFreshAt) return true;
         if (arrivedHold.current && performance.now() - arrivedAt.current < HOLD_MS) return true;
-        const next = lenis.targetScroll + deltaY * WHEEL_MULTIPLIER * climbScale(lenis.targetScroll);
+        const next = lenis.targetScroll + deltaY * WHEEL_MULTIPLIER * climbScale(lenis.targetScroll, dir);
         // The swipe that ran into a wall ends there: its momentum does not carry on into the next zone (Ridge Clinic).
         if (!fresh && dir === freeWall.dir && freeWall.at >= G.lastFreshAt) return true;
         const [za, zb] = freeZoneAt(lenis.scroll, dir)!;
@@ -723,7 +728,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
           // too fast"); Lenis reads the delta after this hook.
           if (deltaY !== 0 && isFree(window.scrollY, deltaY > 0 ? 1 : -1)) {
             const dir = deltaY > 0 ? 1 : -1;
-            let d = Math.abs(deltaY) * climbScale(window.scrollY);
+            let d = Math.abs(deltaY) * climbScale(window.scrollY, dir);
             const L = lenisRef.current;
             // Lenis reads options.lerp for each wheel step, so the payload stage can follow the hand more tightly.
             if (L) L.options.lerp = inPayloadStage(window.scrollY) ? PAYLOAD_LERP : FREE_LERP;
