@@ -718,7 +718,12 @@ export function DroneRig() {
     // `climbProgress`, two snap stops), lightly damped so the drone glides into each stop instead of locking to it.
     const inSpeed = look.sp > 0;
     if ((inSpeed || look.c > 0) && pathOn) pathDraw.current = 1; // (also when a jump lands past the pull-back)
-    const flyTarget = !pathOn ? 0 : inSpeed ? 1 : look.fly;
+    // Back from leg 2 (feedback 2026-11-13: "from Ridge Clinic back it is jumping"): leg 1 waits at the clinic until the
+    // drone is back there. It used to follow the scroll meanwhile, so a scroll back past the clinic while leg 2 was still
+    // easing home moved leg 1 ~30% down the route unseen, and the hand-off teleported the drone (measured 150 px in one
+    // frame). Leg 1 then eases from the clinic to the scroll (continuous).
+    const backFromLeg2 = !inSpeed && pathOn && flight2.current > 1e-4;
+    const flyTarget = !pathOn ? 0 : inSpeed || backFromLeg2 ? 1 : look.fly;
     const prevFlight = flight.current;
     // Same smoothing as the camera (the page scroll is already eased by Lenis): with its own extra lag the drone fell
     // behind the camera on a fast scroll, the view arrived while the drone was still on the way (user 2026-11-05).
@@ -734,7 +739,9 @@ export function DroneRig() {
     if (inSpeed && pathOn) draw2.current = 1;
     const fly2Target = pathOn && inSpeed ? look.sp : 0;
     const prevFlight2 = flight2.current;
-    flight2.current += (fly2Target - flight2.current) * (1 - Math.exp(-dt * 7));
+    // Free scroll on desktop (Lenis already eases it) and the snap on phones: the same light damping as leg 1. Was 7/s,
+    // which kept the drone on leg 2 ~0.7 s after the scroll was back at the clinic.
+    flight2.current += (fly2Target - flight2.current) * (1 - Math.exp(-dt * 30));
     if (Math.abs(fly2Target - flight2.current) < 1e-4) flight2.current = fly2Target;
     flight2Vel.current += ((dt > 0 ? (flight2.current - prevFlight2) / dt : 0) - flight2Vel.current) * (1 - Math.exp(-dt * 5));
     // Cruise = the snap's leg pace (LEG2_MS for the whole leg); the HUD reads km/h against it.
