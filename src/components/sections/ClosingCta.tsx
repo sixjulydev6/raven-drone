@@ -31,6 +31,11 @@ export function ClosingCta() {
   const close = useInView(ref, { margin: "150% 0px 150% 0px", once: true });
   const touchPhone = useMediaQuery("(max-width: 768px) and (pointer: coarse)");
   const [mount, setMount] = useState(false);
+  // Desktop: fetch the drone's chunk in the first reading pause after load, long before the section is near.
+  useEffect(() => {
+    if (touchPhone) return;
+    void whenQuiet().then(loadCtaDrone);
+  }, [touchPhone]);
   useEffect(() => {
     if (!near) return;
     let live = true;

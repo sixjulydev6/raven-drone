@@ -20,7 +20,7 @@ import * as THREE from "three";
  * - Propellers keep spinning after touchdown (PROPELLER_SPEED 75.4 rad/s; Raven keeps its own rotor model).
  */
 export const FLIGHT = {
-  landingS: 3.4, // was 4, then 5.5 (user 2026-11-05: smooth, not a drop; then: arrives too late)
+  landingS: 2, // was 4, 5.5, 3.4 (user 2026-11-05: smooth, not a drop; then: arrives too late; 2026-11-13: "the drone should come immediately")
   playVisible: 0.3,
   /** Share of the landing clip spent on the glide-in; the rest is the vertical let-down. */
   approachEnd: 0.64,
@@ -29,7 +29,7 @@ export const FLIGHT = {
   yawDeg: 21,
   pitchDeg: -12,
   /** Apparent size at the start of the glide (reference distance ratio 387.5 / 75 → 0.19). */
-  startScale: 0.45, // was 0.19: starts nearer, so it reads as the drone arriving at once
+  startScale: 0.72, // was 0.19, .45: starts nearer, so it reads as the drone arriving at once (2026-11-13: nearer still)
   /** Height above the pad where the glide hands over to the vertical let-down (12.5 / 35). */
   letDownHeight: 0.36,
   /** Equivalent start height of the reference glide above the pad (projected at the landing distance). */
@@ -76,10 +76,12 @@ export type LandingPose = { height: number; scale: number; yaw: number; pitch: n
  * first frame) read as the drone falling. Now it eases in from rest, peaks early, and settles with a long soft tail
  * (zero speed at both ends): 1 - (1 - smoothstep(t))^2.
  */
+// Feedback 2026-11-13 ("still it is taking time ... the drone should come immediately"): the smoothstep start left the
+// drone almost still, small and high, for the first ~0.6 s of a 3.4 s landing. Now it moves from the first frame and
+// settles softly (ease-out, power 2.4) over 2 s, from nearer and lower (START_HEIGHT in ClosingCtaDrone).
 export const landingProgress = (seconds: number) => {
   const t = clamp01(seconds / FLIGHT.landingS);
-  const s = t * t * (3 - 2 * t);
-  return 1 - (1 - s) ** 2;
+  return 1 - (1 - t) ** 2.4;
 };
 
 /**

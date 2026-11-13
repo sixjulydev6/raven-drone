@@ -22,7 +22,7 @@ import { FloatBob, landingPose, landingProgress, PointerLean, type LandingPose }
  */
 
 /** Glide start above the rest pose, in drone widths. */
-const START_HEIGHT = 1.1; // was 1.45 (user 2026-11-05: the drone arrived late)
+const START_HEIGHT = 0.55; // was 1.45, 1.1 (user 2026-11-05: the drone arrived late; 2026-11-13: "should come immediately")
 /** RavenModel is SPAN (200) units across; the flight model works in drone widths of 2. */
 const MODEL_SCALE = 0.01;
 const _e = new THREE.Euler();
@@ -106,7 +106,7 @@ export default function CtaDrone({ className }: { className?: string }) {
   // User 2026-11-05 ("the drone is not coming immediately"): render a full screen ahead so the canvas, model and
   // shaders are ready before the section arrives, and start the landing as soon as the section's top is on screen
   // (was 30% visible).
-  const inView = useInView(ref, { margin: "100% 0px 100% 0px" });
+  const inView = useInView(ref, { margin: "200% 0px 200% 0px" }); // was 100%: first frames (compile, env bake) well ahead
   const seen = useInView(ref, { amount: 0.05 });
   const [playing, setPlaying] = useState(false);
   useEffect(() => {
