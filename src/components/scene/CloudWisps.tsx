@@ -34,7 +34,9 @@ uniform vec3 uFocus; // where the camera's view ray meets the layer
 uniform float uReach; // camera -> focus distance
 varying vec3 vWorld;
 
-float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+// Sine-free hash (Hoskins): phone GPUs (Mali/Adreno) evaluate sin() of the large fBm arguments with too little
+// precision, which smeared the clouds into streaky brush strokes on real phones (user 2026-11-13).
+float hash(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
 float noise(vec2 p) {
   vec2 i = floor(p), f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
