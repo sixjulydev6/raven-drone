@@ -3,7 +3,8 @@
 import { motion, useInView, useReducedMotion } from "motion/react";
 import { useLenis } from "lenis/react";
 import { useEffect, useRef, useState } from "react";
-import { FEATURE_BODY, FEATURE_HEADING, FEATURE_KICKER, FEATURES } from "@/lib/features";
+import { FEATURE_BODY, FEATURE_HEADING, FEATURE_KICKER, FEATURES, featureSrcSet, FEATURE_SIZES } from "@/lib/features";
+import { prefetchImages } from "@/lib/prefetch-images";
 
 /** Hexa mark from the card's bottom-right corner (Figma 128:820 "Union"). */
 function HexaMark({ className }: { className?: string }) {
@@ -93,6 +94,9 @@ export function FeatureSection() {
     return () => ro.disconnect();
   }, []);
 
+  // Fetched in the background once the page has loaded (lib/prefetch-images.ts), active-first order.
+  useEffect(() => prefetchImages(FEATURES.map((f) => ({ src: f.image, srcSet: featureSrcSet(f), sizes: FEATURE_SIZES }))), []);
+
   useEffect(() => {
     const update = () => {
       const el = band.current;
@@ -136,6 +140,8 @@ export function FeatureSection() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={f.image}
+              srcSet={featureSrcSet(f)}
+              sizes={FEATURE_SIZES}
               alt={i === active ? f.alt : ""}
               aria-hidden={i !== active}
               // Far below the stage: no SSR preload during the loader (load time, 2026-11-05).

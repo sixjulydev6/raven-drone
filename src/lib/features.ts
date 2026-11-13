@@ -43,6 +43,16 @@ export type Feature = {
   aspect?: number;
 };
 
+/**
+ * Phone-sized renders (user 2026-11-13: the Hardware images loaded very late on phones): each 2560-wide render also
+ * ships 1280 wide (`<name>-1280.webp`, from the 2560 WebP, WebP q88 sharp-YUV), which covers a phone at 3x (412 CSS px
+ * = 1236 px) at less than half the bytes. Desktop and large retina screens still pick the 2560 original.
+ */
+export const FEATURE_SIZES = "100vw";
+export function featureSrcSet(f: Feature) {
+  return `${f.image.replace(/\.webp$/, "-1280.webp")} 1280w, ${f.image} 2560w`;
+}
+
 /** Copy from the user's mockups (2026-11-05). */
 export const FEATURES: Feature[] = [
   {

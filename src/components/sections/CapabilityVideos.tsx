@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CAPABILITY_VIDEOS, SECTION_BODY, SECTION_HEADING, SECTION_KICKER } from "@/lib/features";
+import { prefetchImages } from "@/lib/prefetch-images";
 
 /**
  * Section 04 (Figma 100:622 "Section 4", 1920 x 1433): three tabs over one video panel. When the section comes into
@@ -20,6 +21,8 @@ export function CapabilityVideos() {
   // Download the clips only once the section is near (it is far down the page; the active clip was fetching 1.3 MB
   // during the loader). Until then the panel is empty and not even the posters load.
   const [near, setNear] = useState(false);
+  // The posters (~50 KB each) are fetched in the background after load, so the panel never shows empty (2026-11-13).
+  useEffect(() => prefetchImages(CAPABILITY_VIDEOS.map((c) => ({ src: c.poster }))), []);
   useEffect(() => {
     const el = section.current;
     if (!el) return;
