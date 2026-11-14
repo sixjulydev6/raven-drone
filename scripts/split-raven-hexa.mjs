@@ -20,7 +20,7 @@ import { readGlb, writeGlb } from "./lib/glb.mjs";
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 const MODELS = path.join(ROOT, "public/assets/models");
 const SRC = path.join(MODELS, "raven_hexa.glb");
-const OUT_GLB = path.join(MODELS, "raven_hexa-lite.glb");
+const OUT_GLB = path.join(MODELS, "raven_hexa-lite.glb"); // site ships raven_hexa-lite-q.glb: this output re-Draco-ed (gltf-transform draco --quantize-position 12 --quantize-normal 10 --quantize-texcoord 10)
 const MAP_DIR = path.join(MODELS, "raven-hexa-maps");
 const PREVIEW = 256;
 

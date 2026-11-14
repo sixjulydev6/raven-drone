@@ -21,7 +21,9 @@ export const ASSETS = {
    * geometry with 256 previews of its 11 maps; the originals (raven-hexa-maps/, byte-identical to raven_hexa.glb's)
    * are swapped in after the reveal (scripts/split-raven-hexa.mjs, scene/hd-assets.ts).
    */
-  raven: "/assets/models/raven_hexa-lite.glb",
+  // Draco re-quantized (position 12 / normal 10 / uv 10 bits; was 14/10/12 default): 444 -> 306 KB gzipped, same JSON,
+  // maps and extras.full links (load time, user 2026-11-14 "in android also load it fast"); renamed for the day cache.
+  raven: "/assets/models/raven_hexa-lite-q.glb",
   droneLowpoly: "/assets/models/drone-lowpoly.glb", // Raven silhouette, same node/axis convention as delta-lowpoly
   cameraAnimations: "/assets/models/camera-animations.glb",
   cameraAnimationsMobile: "/assets/models/camera-animations-mobile.glb",
@@ -29,10 +31,11 @@ export const ASSETS = {
   droneAnimationsMobile: "/assets/models/drone-animations-mobile.glb",
   noise: "/assets/textures/fx/noise.webp",
   openingLand: "/assets/textures/environment/raven-opening-land.webp", // glb/raven-sky/01_opening_panorama.py (land)
-  // Sky lighting, 512x256 half float, ZIP (user 2026-11-14: "not loading in mobile"). Was env.exr (1024x512, DWAA):
-  // three's JS DWAA decoder froze Safari's main thread for 21-27 s during loading (WebKit, every run); ZIP decodes in
-  // ~30 ms everywhere. Half size keeps it at 393 KB on mobile data; the drone looks the same (PMREM blurs it anyway).
-  env: "/assets/textures/environment/env-512.exr",
+  // Sky lighting (drone reflections only), 256x128 half float, ZIP, low 4 mantissa bits rounded off: 71 KB (user
+  // 2026-11-14: "not loading in mobile" / "load it fast"). Was env.exr (1024x512, DWAA, 149 KB): three's JS DWAA decoder
+  // froze Safari's main thread 21-27 s during loading (WebKit, every run); ZIP decodes in ms everywhere. The drone looks
+  // the same in side-by-side shots (PMREM blurs it anyway).
+  env: "/assets/textures/environment/env-256.exr",
   /** Geist Mono (OFL, from the `geist` package) for WebGL labels on the clay landscape (ClayFlight). */
   geistMono: "/assets/3d-fonts/GeistMono-Regular.ttf",
 } as const;

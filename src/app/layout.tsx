@@ -1,6 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { GeistMono } from "geist/font/mono";
-import { GeistSans } from "geist/font/sans";
 import localFont from "next/font/local";
 import { ASSETS, DRACO_PATH } from "@/lib/assets";
 import { LOAD_ETA_SCRIPT } from "@/lib/load-eta";
@@ -13,6 +11,19 @@ import "./globals.css";
  * subsets self-hosted from Google Fonts (OFL) because next/font/google failed to fetch on the Vercel build machine.
  * Not preloaded: only the sections below the stage use them (load time, 2026-11-05).
  */
+/**
+ * Geist (the page's sans and mono), the geist package's variable fonts subset to Latin + punctuation/arrows/symbols
+ * (pyftsubset, OFL): 70 -> 35 KB each, both preloaded on the first paint (load time, user 2026-11-14 "load it fast").
+ * Same CSS variables and fallbacks as geist/font/sans and geist/font/mono.
+ */
+const GeistSans = localFont({ src: "./fonts/Geist-Variable-latin.woff2", variable: "--font-geist-sans", weight: "100 900" });
+const GeistMono = localFont({
+  src: "./fonts/GeistMono-Variable-latin.woff2",
+  variable: "--font-geist-mono",
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Roboto Mono", "Menlo", "Monaco", "Liberation Mono", "DejaVu Sans Mono", "Courier New", "monospace"],
+  weight: "100 900",
+});
 const interTight = localFont({ src: "./fonts/InterTight-latin-var.woff2", weight: "100 900", variable: "--font-inter-tight", display: "swap", preload: false });
 const dmMono = localFont({ src: "./fonts/DMMono-Regular-latin.woff2", weight: "400", variable: "--font-dm-mono", display: "swap", preload: false });
 
