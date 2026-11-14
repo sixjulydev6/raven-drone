@@ -525,6 +525,17 @@ dialog::backdrop {
   }
 }
 
+/* iPad mini / small tablets (user 2026-11-14, "increase the width of this card little"): the --u card is cramped at
+   768-1023px wide, so widen it and let the body copy use the extra room. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .feature-card {
+    width: calc(var(--u) * 700);
+  }
+  .feature-body {
+    max-width: calc(var(--u) * 560);
+  }
+}
+
 /* Section 04 (Figma 100:622 "Section 4", 1920 x 1433): sizes in --u (one frame pixel of the page width). */
 /* User 2026-11-06 ("crop the video and make the section fit within the viewport"): one screen tall, clear of the nav
    bar; heading and tabs keep their size and the video panel takes the rest, its clip cropped to fill (object-cover). */
