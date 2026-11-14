@@ -29,7 +29,10 @@ export const ASSETS = {
   droneAnimationsMobile: "/assets/models/drone-animations-mobile.glb",
   noise: "/assets/textures/fx/noise.webp",
   openingLand: "/assets/textures/environment/raven-opening-land.webp", // glb/raven-sky/01_opening_panorama.py (land)
-  env: "/assets/textures/environment/env.exr",
+  // Sky lighting, 512x256 half float, ZIP (user 2026-11-14: "not loading in mobile"). Was env.exr (1024x512, DWAA):
+  // three's JS DWAA decoder froze Safari's main thread for 21-27 s during loading (WebKit, every run); ZIP decodes in
+  // ~30 ms everywhere. Half size keeps it at 393 KB on mobile data; the drone looks the same (PMREM blurs it anyway).
+  env: "/assets/textures/environment/env-512.exr",
   /** Geist Mono (OFL, from the `geist` package) for WebGL labels on the clay landscape (ClayFlight). */
   geistMono: "/assets/3d-fonts/GeistMono-Regular.ttf",
 } as const;
