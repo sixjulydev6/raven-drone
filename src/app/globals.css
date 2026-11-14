@@ -529,7 +529,7 @@ dialog::backdrop {
    768-1023px wide, so widen it and let the body copy use the extra room. */
 /* 2026-11-14 follow-up ("still same"): a --u width barely moves at tablet sizes, so set a px floor, and cover the
    iPad mini in landscape too (1024-1133px wide). */
-@media (min-width: 744px) and (max-width: 1199px) {
+@media (min-width: 768px) and (max-width: 1199px) {
   .feature-card {
     width: max(calc(var(--u) * 760), 520px);
   }
