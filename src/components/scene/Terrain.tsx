@@ -32,6 +32,7 @@ import { DetectionPoints } from "./DetectionPoints";
 import { RAVEN_DETECTION_Y, RAVEN_TILE_MAPS, ravenTileVariant, terrainVariant } from "./raven-terrain";
 import { useGLB } from "./types";
 import { HD_PRIORITY, hdSettled, queueHd, whenQuiet } from "./hd-assets";
+import { uploadInStrips } from "./strip-upload";
 import { clayOn, clayState } from "./clay-map";
 import { TerrainProbe, probeEnabled } from "./TerrainProbe";
 
@@ -372,9 +373,16 @@ function TerrainView({ city: eagerCity }: { city?: CityAssets }) {
     // orientation matches); HTML image fallback where ImageBitmap is missing.
     const bitmaps = typeof createImageBitmap !== "undefined";
     const load = async (url: string) => {
-      const tex = bitmaps
-        ? new THREE.Texture(await new THREE.ImageBitmapLoader().setOptions({ premultiplyAlpha: "none" }).loadAsync(url))
-        : await new THREE.TextureLoader().loadAsync(url);
+      if (bitmaps) {
+        // Strip upload (strip-upload.ts): a 4K map in one texSubImage2D froze the hovering drone 160-310 ms.
+        const bmp = await new THREE.ImageBitmapLoader().setOptions({ premultiplyAlpha: "none" }).loadAsync(url);
+        if (!alive) return null;
+        const tex = await uploadInStrips(gl, bmp, naturalMap, () => alive);
+        if (!tex) return null;
+        loaded.push(tex);
+        return tex;
+      }
+      const tex = await new THREE.TextureLoader().loadAsync(url);
       if (!alive) {
         tex.dispose();
         return null;

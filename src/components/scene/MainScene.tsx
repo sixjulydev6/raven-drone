@@ -18,6 +18,7 @@ import { Flock } from "./Flock";
 import { GridRow } from "./Grid";
 import { HeroPlate, heroPlateEnabled } from "./HeroPlate";
 import { startHd } from "./hd-assets";
+import { sceneWarm, WARM_MAX_MS } from "./scene-warm";
 import { OpeningSky } from "./OpeningSky";
 import { usePostFX } from "./PostFX";
 import { DAYLIGHT, HERO_LIGHT, heroLight, updateHeroLight } from "./hero-light";
@@ -108,7 +109,7 @@ function HeroAudio() {
  * Compile every material in `scene` now, hidden objects included, so nothing compiles mid-scroll. compileAsync
  * collects the programs synchronously, so visibility only has to be forced for that traversal.
  */
-function prewarm(gl: THREE.WebGLRenderer, scene: THREE.Object3D, cam: THREE.Camera) {
+function prewarm(gl: THREE.WebGLRenderer, scene: THREE.Object3D, cam: THREE.Camera): Promise<unknown> {
   const hidden: THREE.Object3D[] = [];
   scene.traverse((o) => {
     if (!o.visible) {
@@ -116,8 +117,9 @@ function prewarm(gl: THREE.WebGLRenderer, scene: THREE.Object3D, cam: THREE.Came
       o.visible = true;
     }
   });
-  gl.compileAsync(scene, cam).catch(() => {});
+  const done = gl.compileAsync(scene, cam).catch(() => {});
   for (const o of hidden) o.visible = false;
+  return done;
 }
 
 /** Flock scene rendered into an FBO through a portal (shipped `tK.Y`). */
@@ -203,6 +205,14 @@ export function MainScene() {
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const sunDistance = SUN_POSITION.length();
 
+  // First-frame gate (scene-warm.ts): link every program in parallel before PostFX draws the first frame.
+  useFrame(({ gl, camera: cam }) => {
+    if (sceneWarm.started) return;
+    sceneWarm.started = true;
+    const open = () => void (sceneWarm.ready = true);
+    Promise.race([prewarm(gl, scene, cam), new Promise((r) => setTimeout(r, WARM_MAX_MS))]).then(open, open);
+  });
+
   useFrame(({ clock, gl, camera: cam }) => {
     // Raven daylight: travel-driven sun sway + passing cloud shade (see sunlight.ts).
     updateSunlight(terrainOffset.current ?? 0, clock.getElapsedTime(), reducedMotion);
@@ -253,13 +263,12 @@ export function MainScene() {
       }
       sun.target.updateMatrixWorld();
     }
-    if (!announced.current) {
+    if (!announced.current && sceneWarm.ready) {
       announced.current = true;
       setTimeout(() => useLoading.getState().setMainAppLoaded(true), 25);
       startHd(); // full-quality textures (hd-assets.ts) only once the first frame is up
-      // Compile every material up front, hidden objects included (flank drones, tags appear later): the first time
-      // they became visible in Connection the shader compile stalled one frame (user: "still a jitter").
-      prewarm(gl, scene, cam);
+      // Every material, hidden objects included (flank drones, tags appear later), was compiled by the first-frame
+      // gate above: the first time they became visible in Connection the compile stalled one frame ("still a jitter").
     }
     const on = false; // Journey's network map is not shown (user, 2026-11-02: Journey removed)
     if (on !== flockOn.current) {

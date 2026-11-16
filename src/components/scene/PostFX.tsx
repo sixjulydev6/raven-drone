@@ -14,6 +14,7 @@ import { droneLayerSamples, useRenderScale } from "@/lib/render-scale";
 import { clayState } from "./clay-map";
 import { fisheyeAt } from "./opening";
 import { TerrainLensEffect } from "./TerrainLensEffect";
+import { sceneWarm } from "./scene-warm";
 import { mountainTerrainEnabled } from "./mountain-terrain";
 import { terrainVariant } from "./raven-terrain";
 import { DAYLIGHT, HERO_LIGHT, heroLight } from "./hero-light";
@@ -578,6 +579,7 @@ export function usePostFX(flockTarget: THREE.WebGLRenderTarget) {
   // A positive-priority frame callback disables R3F's automatic render.
   useFrame(() => {}, 1);
   useFrame((state, dt) => {
+    if (!sceneWarm.ready) return; // first-frame gate (scene-warm.ts): programs still linking in parallel
     const p = pre.current;
     // Off-screen map render: the store was put into the map state at the end of the previous frame, so every scene
     // component has already updated for it this frame. Nothing reaches the canvas (final pass off) and the DOM never
