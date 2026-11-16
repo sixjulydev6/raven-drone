@@ -12,7 +12,7 @@ Started as a faithful reconstruction of https://www.usavionix.com/ (captured 202
 into **Raven**. Scroll choreography, camera tracks, terrain and several mirrored assets still come from the reference.
 Not affiliated with USAvionix.
 
-- Deployment (user decision 2026-10-30): private GitHub repo + public Vercel production. The page stays `noindex`.
+- Deployment (user decision 2026-10-30): private GitHub repo + public Vercel production. Indexable since 2026-11-16 (user: "add robots.txt and meta tags and description"; was `noindex`): `app/robots.ts`, `app/sitemap.ts`, metadata in `layout.tsx` from `lib/site.ts` (`SITE_URL` https://raven.sixjuly.com), share image `app/opengraph-image.jpg` / `twitter-image.jpg`.
   Third-party reference material stays local and is gitignored/vercelignored: `research/` (captured bundles/HTML),
   `asset/` (DJI videos), and the unused mirrored jet/brand assets listed in `.gitignore`. Do not re-add them.
 - Never hotlink reference assets. Everything is served from `public/`.

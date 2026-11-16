@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { ASSETS, DRACO_PATH } from "@/lib/assets";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/site";
 import { LOAD_ETA_SCRIPT } from "@/lib/load-eta";
 import { Navbar } from "@/components/Navbar";
 import { SmoothScroll } from "@/components/SmoothScroll";
@@ -27,11 +28,47 @@ const GeistMono = localFont({
 const interTight = localFont({ src: "./fonts/InterTight-latin-var.woff2", weight: "100 900", variable: "--font-inter-tight", display: "swap", preload: false });
 const dmMono = localFont({ src: "./fonts/DMMono-Regular-latin.woff2", weight: "400", variable: "--font-dm-mono", display: "swap", preload: false });
 
+/**
+ * SEO and share tags (user 2026-11-16: "add robots.txt and meta tags and description"; was noindex since 2026-10-30).
+ * Share image: app/opengraph-image.jpg + twitter-image.jpg (1200x630 hero capture), picked up by Next's file convention.
+ */
 export const metadata: Metadata = {
-  title: "Raven — medical delivery drone concept",
-  description:
-    "The road goes around. Raven goes over. A medical delivery drone concept exploring a direct air link from a regional health centre to remote hill clinics.",
-  robots: { index: false, follow: false },
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_TITLE, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "Raven",
+    "medical delivery drone",
+    "drone delivery",
+    "healthcare logistics",
+    "remote villages",
+    "mountain clinics",
+    "hexacopter",
+    "medical supplies",
+    "last-mile delivery",
+    "Sixjuly",
+  ],
+  authors: [{ name: "Sixjuly", url: "https://sixjuly.com" }],
+  creator: "Sixjuly",
+  publisher: "Sixjuly",
+  category: "technology",
+  alternates: { canonical: "/" },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
