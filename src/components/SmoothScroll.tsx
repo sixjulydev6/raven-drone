@@ -82,7 +82,16 @@ const PAYLOAD_LERP = 0.24; // .3 felt too fast (user 2026-11-06); .18 lagged
 const inPayloadStage = (scroll: number) => payloadRange.T > 0 && scroll < payloadRange.Q + payloadRange.T;
 const maxLead = (scroll: number, dir: number) => (inPayloadStage(scroll) ? PAYLOAD_MAX_LEAD : freeMaxLead(dir));
 /** The root Lenis, for the climb's speed cap in the virtualScroll hook (set by SceneController). */
-const lenisRef: { current: { targetScroll: number; animatedScroll: number; options: { lerp?: number } } | null } = { current: null };
+const lenisRef: { current: { targetScroll: number; animatedScroll: number; velocity: number; options: { lerp?: number } } | null } = { current: null };
+/**
+ * The finger's speed at the lift (px/ms, + = page down), averaged over the last FINGER_WINDOW_MS of the drag like a
+ * phone's own scroller (user 2026-11-16, mobile: "smooth but also jerky on each scroll"). Lenis' touch inertia read
+ * only the page's last frame: a finger that slows in its final 16 ms (most do) lost its glide, so below the 3D stage a
+ * flick stopped dead where the finger left; and the stage snaps jumped from that near-stop to 60% of cruise in one
+ * frame (fast -> stop -> fast on every swipe). Set by SceneController's touchend, read by both.
+ */
+const FINGER_WINDOW_MS = 100;
+const fingerVel = { current: 0 };
 /** Leg 2 (Ridge Clinic -> Summit Station; feedback 2026-11-13: "too fast ... increase one more scroll"): 3 -> 4 swipes. */
 const onLeg2 = (scroll: number, dir: number) =>
   speedRange.T > 0 && scroll < speedRange.Q + speedRange.T + 0.5 && (scroll > speedRange.Q + 0.5 || (scroll >= speedRange.Q - 0.5 && dir > 0));
@@ -504,7 +513,10 @@ function SceneController() {
             legTarget.current = null;
             legLen.current = 0;
             legRate.current = 0;
-            snapVel.current = sign * Math.min(rate, Math.max(rate * 0.6, Math.abs(touchVel.current)));
+            // From the finger's own recent speed (fingerVel, 100 ms average), then the usual ramp to cruise: was
+            // max(60% cruise, last-move speed), a one-frame jump from a near-stop on every swipe (user 2026-11-16).
+            const along = Math.sign(touchVel.current) === sign ? Math.abs(touchVel.current) : 0;
+            snapVel.current = sign * Math.min(rate, Math.max(rate * 0.15, along));
           }
           // Eased: accelerate to `rate` over SNAP_RAMP_MS, brake so speed reaches 0 at the target (v = sqrt(2 a d)).
           // Long moves (the climb, the stages) ease in and out over a share of their own duration, so they glide like a
@@ -618,6 +630,13 @@ function SceneController() {
     };
     let touchY = 0;
     let touchT = 0;
+    let hist: [number, number][] = []; // [timeStamp, clientY] of the drag, last FINGER_WINDOW_MS
+    const fingerSpeed = (now: number) => {
+      if (hist.length < 2 || now - hist[hist.length - 1][0] > 60) return 0; // finger held still before the lift
+      const [t1, y1] = hist[hist.length - 1];
+      const [t0, y0] = hist.find((h) => t1 - h[0] <= FINGER_WINDOW_MS) ?? hist[0];
+      return t1 > t0 ? (y0 - y1) / (t1 - t0) : 0;
+    };
     const onTouchStart = (e: TouchEvent) => {
       if (!ready()) return;
       if (e.target instanceof Element && e.target.closest('[data-nav-touch="1"]')) {
@@ -627,7 +646,9 @@ function SceneController() {
       navTouch.current = false;
       touchY = e.touches[0].clientY;
       touchT = e.timeStamp;
+      hist = [[touchT, touchY]];
       touchVel.current = 0;
+      fingerVel.current = 0;
       touching.current = true;
     };
     const onTouchMove = (e: TouchEvent) => {
@@ -638,8 +659,12 @@ function SceneController() {
       request(touchY - y > 0 ? 1 : -1);
       touchY = y;
       touchT = e.timeStamp;
+      hist.push([touchT, y]);
+      while (hist.length > 2 && touchT - hist[1][0] > FINGER_WINDOW_MS) hist.shift();
     };
-    const onTouchEnd = () => {
+    const onTouchEnd = (e: TouchEvent) => {
+      fingerVel.current = fingerSpeed(e.timeStamp);
+      touchVel.current = fingerVel.current;
       if (isScrollLocked()) return;
       if (navTouch.current) {
         navTouch.current = false;
@@ -660,17 +685,17 @@ function SceneController() {
     };
     window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("keydown", onKey);
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
-    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchstart", onTouchStart, { passive: true, capture: true }); // capture: before Lenis reads fingerVel
+    window.addEventListener("touchmove", onTouchMove, { passive: true, capture: true });
+    window.addEventListener("touchend", onTouchEnd, { capture: true });
     window.addEventListener("mouseup", onMouseUp);
     return () => {
       window.removeEventListener("wheel", onWheel);
       if (holdTimer) window.clearTimeout(holdTimer);
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchstart", onTouchStart, { capture: true });
+      window.removeEventListener("touchmove", onTouchMove, { capture: true });
+      window.removeEventListener("touchend", onTouchEnd, { capture: true });
       window.removeEventListener("mouseup", onMouseUp);
       if (raf.current !== null) cancelAnimationFrame(raf.current);
       raf.current = null;
@@ -728,6 +753,8 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
         // Returning false alone lets the browser scroll natively by the raw delta (a visible jump), so cancel it here.
         virtualScroll: (data) => {
           const { event, deltaY } = data;
+          // Touch glide from the finger's recent speed (fingerVel), in Lenis' px-per-frame units.
+          if (event.type === "touchend" && lenisRef.current) lenisRef.current.velocity = fingerVel.current * (1000 / 60);
           // The climb (free zone) follows the gesture at a calmer rate (user 2026-11-05: "respond immediately but not
           // too fast"); Lenis reads the delta after this hook.
           if (deltaY !== 0 && isFree(window.scrollY, deltaY > 0 ? 1 : -1)) {
