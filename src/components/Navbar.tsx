@@ -8,10 +8,8 @@ import { useShallow } from "zustand/react/shallow";
 import { useLoading } from "@/lib/loading";
 import { SCENE, sceneEndOffset, useScenes, type SceneId } from "@/lib/scenes";
 import { toPage, useStage } from "@/lib/story-map";
-import { isScrollLocked, lockScroll, unlockScroll } from "@/lib/scroll-lock";
+import { isScrollLocked } from "@/lib/scroll-lock";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { ContactButton } from "./ContactButton";
-import { CONCEPT_NOTICE } from "@/lib/copy";
 import { CloseIcon, MenuIcon } from "./ui/icons";
 
 /** Chapter targets in order (shipped `O` in layout module 72781); Raven display labels. Story bands: story-map.ts. */
@@ -24,19 +22,13 @@ const CHAPTERS: [SceneId, string][] = [
   // Review, Updates, Support and Network removed (user, 2026-11-03): the story ends on the Care teams landscape.
 ];
 
-/** In-page destinations (the shipped menu linked to other products). `null` = top of the story. */
-// Every section of the page in order (feedback 2026-11-10: "the menu on the right side needs to be updated"; it only
-// reached the 3D story): the story frames, then Sections 03-05 (Section 03's band top is its first feature stop).
-// Contact (last item, all sizes) opens the contact modal like the bar's button.
-const MENU_LINKS: { label: string; target: string | null }[] = [
-  { label: "The delivery story", target: null },
-  { label: "Payload", target: "#payload" },
-  { label: "Altitude", target: "#route" },
-  { label: "Speed", target: "#speed" },
-  { label: "Hardware", target: "#features-band" },
-  { label: "Capabilities", target: "#capabilities" },
-  { label: "Use cases", target: "#use-cases" },
-];
+/**
+ * External links (user 2026-11-16: Contact "should navigate to sixjuly website ... dont show any navmenu, just when they
+ * tap on the menu navigate it"): Contact goes to the Sixjuly contact page (as the closing CTA's "Talk to us"), the menu
+ * square goes to sixjuly.com. The slide-out section menu and the contact modal are gone from the bar.
+ */
+const SIXJULY_URL = "https://sixjuly.com/";
+const SIXJULY_CONTACT_URL = "https://sixjuly.com/contact/";
 
 /** Chapter ticks (Airframe ... Care teams) are off: those chapters are no longer on the page. */
 const SHOW_CHAPTER_TICKS = false;
@@ -226,89 +218,16 @@ function MenuToggle({ open }: { open: boolean }) {
   );
 }
 
-/** Right-side sheet menu (shipped `T`); native <dialog> for focus trap + Escape. */
+/** Menu square: a link to sixjuly.com (no slide-out menu since 2026-11-16). */
 function Menu() {
-  const lenis = useLenis();
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open || !lenis) return;
-    lockScroll(lenis);
-    return () => unlockScroll(lenis);
-  }, [open, lenis]);
-  const close = () => dialog.current?.close();
-  // Jump once the dialog's scroll lock is released (unlock runs in the effect cleanup after close).
-  const go = (target: string | null) => {
-    close();
-    window.setTimeout(() => lenis?.scrollTo(target ?? 1, { immediate: true }), 50);
-  };
   return (
-    <>
-      <button
-        type="button"
-        className="grid h-full w-[var(--nav-height)] cursor-pointer place-items-center border-l border-[var(--bar-line)] bg-[#0b0c0b] focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white"
-        aria-label="Open menu"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => {
-          dialog.current?.showModal();
-          setOpen(true);
-        }}
-      >
-        <MenuToggle open={false} />
-      </button>
-      <dialog
-        ref={dialog}
-        aria-label="Menu"
-        onClose={() => setOpen(false)}
-        onClick={(e) => {
-          if (e.target === dialog.current) close();
-        }}
-        className="z-menu fixed inset-0 m-0 h-svh max-h-none w-full max-w-none bg-black/50 text-white [&:not([open])]:hidden"
-      >
-        <div
-          className={clsx(
-            "fixed top-0 right-0 bottom-0 flex h-svh w-full flex-col border-l border-white/20 bg-black/70 backdrop-blur-xl transition-transform duration-500 md:max-w-79",
-            open ? "translate-x-0" : "translate-x-full",
-          )}
-        >
-          <div className="text-d-body-l flex h-[var(--nav-height)] w-full items-center justify-end px-4 text-white/70 md:px-8">
-            <button type="button" onClick={close} aria-label="Close menu" className="cursor-pointer">
-              <MenuToggle open />
-            </button>
-          </div>
-          <div className="flex flex-1 flex-col px-4 py-6 md:px-8">
-            <ul className="flex flex-col gap-1">
-              {MENU_LINKS.map((l) => (
-                <li key={l.label}>
-                  <button
-                    type="button"
-                    onClick={() => go(l.target)}
-                    className="text-d-cta block w-fit cursor-pointer py-3 text-white transition-colors duration-200 hover:text-white/50"
-                  >
-                    {l.label}
-                  </button>
-                </li>
-              ))}
-              <li>
-                <ContactButton
-                  label="Contact"
-                  trigger={
-                    <button type="button" className="text-d-cta block w-fit py-3 text-white transition-colors duration-200 hover:text-white/50">
-                      Contact
-                    </button>
-                  }
-                />
-              </li>
-            </ul>
-            <div className="mt-auto border-t border-white/10 pt-5">
-              <p className="text-d-cta text-white">A design concept</p>
-              <p className="text-d-body-s mt-1 leading-6 text-white/65">{CONCEPT_NOTICE}</p>
-            </div>
-          </div>
-        </div>
-      </dialog>
-    </>
+    <a
+      href={SIXJULY_URL}
+      className="grid h-full w-[var(--nav-height)] cursor-pointer place-items-center border-l border-[var(--bar-line)] bg-[#0b0c0b] focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-white"
+      aria-label="Menu: go to sixjuly.com"
+    >
+      <MenuToggle open={false} />
+    </a>
   );
 }
 
@@ -382,17 +301,12 @@ export function Navbar() {
         </button>
       </div>
       {SHOW_CHAPTER_TICKS && <ChapterNav />}
-      <ContactButton
-        label="Contact"
-        trigger={
-          <button
-            type="button"
-            className={clsx(barText, "flex h-full cursor-pointer items-center justify-center border-l border-[var(--bar-line)] px-[clamp(1.75rem,4.2vw,4.375rem)] max-[640px]:hidden")}
-          >
-            Contact
-          </button>
-        }
-      />
+      <a
+        href={SIXJULY_CONTACT_URL}
+        className={clsx(barText, "flex h-full cursor-pointer items-center justify-center border-l border-[var(--bar-line)] px-[clamp(1.75rem,4.2vw,4.375rem)] max-[640px]:hidden")}
+      >
+        Contact
+      </a>
       <Menu />
     </nav>
   );
