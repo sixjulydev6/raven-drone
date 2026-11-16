@@ -90,11 +90,14 @@ export const FEATURES: Feature[] = [
   },
 ];
 
-export type CapabilityVideo = { id: string; label: string; src: string; poster: string };
+export type CapabilityVideo = { id: string; label: string; src: string; srcSmall: string; poster: string };
 
 /** Section 04 tabs, in the Figma order. Clips: assets/Section 04 videos (audio stripped, they play muted). */
 export const CAPABILITY_VIDEOS: CapabilityVideo[] = [
-  { id: "sensor", label: "Sensor", src: "/assets/video/section04/sensor.mp4", poster: "/assets/video/section04/sensor-poster.jpg" },
-  { id: "crosswind", label: "Crosswind", src: "/assets/video/section04/crosswind.mp4", poster: "/assets/video/section04/crosswind-poster.jpg" },
-  { id: "autopilot", label: "Route", src: "/assets/video/section04/autopilot.mp4", poster: "/assets/video/section04/autopilot-poster.jpg" },
+  // `src` is the 1080p clip (x264 CRF 25, SSIM .994 vs the old 3.3-3.7 Mbps files, ~27% smaller); `srcSmall` is 720p
+  // (CRF 23, SSIM .988, ~55% smaller) for screens under 1200 px (phones, tablets). User 2026-11-16 (iPad mini): "the
+  // videos are not loading fast".
+  { id: "sensor", label: "Sensor", src: "/assets/video/section04/sensor-1080.mp4", srcSmall: "/assets/video/section04/sensor-720.mp4", poster: "/assets/video/section04/sensor-poster.jpg" },
+  { id: "crosswind", label: "Crosswind", src: "/assets/video/section04/crosswind-1080.mp4", srcSmall: "/assets/video/section04/crosswind-720.mp4", poster: "/assets/video/section04/crosswind-poster.jpg" },
+  { id: "autopilot", label: "Route", src: "/assets/video/section04/autopilot-1080.mp4", srcSmall: "/assets/video/section04/autopilot-720.mp4", poster: "/assets/video/section04/autopilot-poster.jpg" },
 ];

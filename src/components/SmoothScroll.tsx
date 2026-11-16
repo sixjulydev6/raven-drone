@@ -295,7 +295,11 @@ const findBand = (scroll: number, bands: SceneRange[][]) => {
 function SceneController() {
   const lenis = useLenis();
   const loadingHidden = useLoading((s) => s.loadingCanvasIsHiding || s.loadingCanvasHidden);
-  const isTouchPhone = useMediaQuery("(max-width: 768px) and (pointer: coarse)");
+  // Every touch-only device, any width (user 2026-11-16, iPad mini: "on scroll at one section it is getting stuck"):
+  // landscape iPads (1133 px) got the desktop free climb/leg 2, where a finger swipe moved only 240-370 px (9 swipes
+  // up to Ridge Clinic, 7 more to Summit Station; 31 swipes for the page). Touch laptops / iPads with a trackpad
+  // report hover, so they keep the desktop zones.
+  const isTouchPhone = useMediaQuery("(hover: none) and (pointer: coarse)");
   useEffect(() => {
     touchPhone.current = isTouchPhone;
   }, [isTouchPhone]);

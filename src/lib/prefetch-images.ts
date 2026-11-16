@@ -16,7 +16,7 @@ const seen = new Set<string>();
 let running = false;
 
 /** The scene is revealed (loader fading out): its first-frame assets are in. */
-function afterReveal(): Promise<void> {
+export function afterReveal(): Promise<void> {
   if (useLoading.getState().loadingCanvasIsHiding) return Promise.resolve();
   return new Promise((resolve) => {
     const off = useLoading.subscribe((s) => {
@@ -27,7 +27,7 @@ function afterReveal(): Promise<void> {
   });
 }
 
-function idle(): Promise<void> {
+export function idle(): Promise<void> {
   return new Promise((resolve) =>
     "requestIdleCallback" in window ? window.requestIdleCallback(() => resolve(), { timeout: 2000 }) : setTimeout(resolve, 200),
   );

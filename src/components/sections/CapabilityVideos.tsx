@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CAPABILITY_VIDEOS, SECTION_BODY, SECTION_HEADING, SECTION_KICKER } from "@/lib/features";
 import { prefetchImages } from "@/lib/prefetch-images";
+import { onVideoBlob, prefetchVideos, videoBlob } from "@/lib/prefetch-videos";
 
 /**
  * Section 04 (Figma 100:622 "Section 4", 1920 x 1433): three tabs over one video panel. When the section comes into
@@ -23,6 +24,37 @@ export function CapabilityVideos() {
   const [near, setNear] = useState(false);
   // The posters (~50 KB each) are fetched in the background after load, so the panel never shows empty (2026-11-13).
   useEffect(() => prefetchImages(CAPABILITY_VIDEOS.map((c) => ({ src: c.poster }))), []);
+  // Clip size per screen (720p under 1200 px: phones, tablets; 1080p above), picked on the client. The clips are then
+  // downloaded whole in the background after the reveal (lib/prefetch-videos.ts) and swapped in as blob URLs, so they
+  // play at once on iOS (which ignores preload) and on every tab switch (user 2026-11-16, iPad mini).
+  const [urls, setUrls] = useState<string[] | null>(null);
+  useEffect(() => {
+    const small = window.matchMedia("(max-width: 1199px)").matches;
+    const list = CAPABILITY_VIDEOS.map((c) => (small ? c.srcSmall : c.src));
+    setUrls(list);
+    prefetchVideos(list);
+  }, []);
+  useEffect(() => {
+    if (!urls) return;
+    // A clip that arrives while its <video> streams the same file takes over in place (same time, same play state).
+    const swap = (i: number, blob: string) => {
+      const v = videos.current[i];
+      if (!v || v.src === blob) return;
+      const t = v.currentTime;
+      const playing = !v.paused && !v.ended;
+      v.src = blob;
+      if (t > 0) v.currentTime = t;
+      if (playing) v.play().catch(() => {});
+    };
+    urls.forEach((u, i) => {
+      const b = videoBlob(u);
+      if (b) swap(i, b);
+    });
+    return onVideoBlob((u, b) => {
+      const i = urls.indexOf(u);
+      if (i >= 0) swap(i, b);
+    });
+  }, [urls]);
   useEffect(() => {
     const el = section.current;
     if (!el) return;
@@ -133,7 +165,8 @@ export function CapabilityVideos() {
               ref={(el) => {
                 videos.current[i] = el;
               }}
-              src={c.src}
+              // Network URL only: the blob swap (above) is imperative, so React never rewrites src (that restarts a clip).
+              src={urls?.[i]}
               poster={near ? c.poster : undefined}
               muted
               playsInline
